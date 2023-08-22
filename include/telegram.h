@@ -95,11 +95,16 @@ public:
     
   }
   void Loop() {
+   
     while (true) {
       process_response(client_manager_->receive(0));
     }
   }
-  
+  void showchannels(){
+    for(int i=0;i<channels.size();i++){
+      std::cout<<"CHANNELS ID: "<<channels[i].id<<" NAME: "<<channels[i].name<<"\n";
+    }
+  }
 private:
   std::vector<channel> channels;
   
@@ -110,7 +115,7 @@ private:
 private:
   virtual void AuthComplite() { GetAllChannels(); }
   void CheckDBChannels(){
-
+    showchannels();
   }
   void GetAllChannels() {
     auto chats = td_api::make_object<td_api::getChats>(nullptr, 100);
