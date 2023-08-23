@@ -6,6 +6,7 @@
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
+#include "conn_manager.h"
 #include <cstdint>
 #include <functional>
 #include <iostream>
@@ -69,8 +70,9 @@ public:
 
 protected:
   virtual void AuthComplite() = 0;
+  virtual void AuthInputCode() = 0;
   std::string get_user_name(std::int64_t user_id) const;
-  std::uint64_t next_query_id() ;
+  std::uint64_t next_query_id();
   void send_query(td_api::object_ptr<td_api::Function> f,
                   std::function<void(Object)> handler);
   void process_response(td::ClientManager::Response response);
@@ -91,66 +93,79 @@ struct channel {
 
 class TG : public TelegramClient {
 public:
-  TG() : TelegramClient() {
-    
-  }
+  TG() : TelegramClient() {}
   void Loop() {
-   
+
     while (true) {
       process_response(client_manager_->receive(0));
     }
   }
-  void showchannels(){
-    for(int i=0;i<channels.size();i++){
-      std::cout<<"CHANNELS ID: "<<channels[i].id<<" NAME: "<<channels[i].name<<"\n";
+  void showchannels() {
+    for (int i = 0; i < channels.size(); i++) {
+      std::cout << "CHANNELS ID: " << channels[i].id
+                << " NAME: " << channels[i].name << "\n";
     }
   }
+
 private:
   std::vector<channel> channels;
-  
+  connector_manager conn_m;
+
 private:
   int last_chat = 0;
   int total_chat = 0;
 
 private:
   virtual void AuthComplite() { GetAllChannels(); }
+  virtual void AuthInputCode() {
+    std::string code="";
+    //code = conn_m.get_auth_code();
+    
+    std::cin>>code;
+    send_query(
+                td_api::make_object<td_api::checkAuthenticationCode>(code),
+                [this, id = authentication_query_id_](Object object) {
+      if (id == authentication_query_id_) {
+        check_authentication_error(std::move(object));
+      }});
+  }
   void CheckDBChannels(){
-    showchannels();
+      showchannels();
   }
   void GetAllChannels() {
-    auto chats = td_api::make_object<td_api::getChats>(nullptr, 100);
+      auto chats = td_api::make_object<td_api::getChats>(nullptr, 100);
 
-    send_query(std::move(chats), [this](Object object) {
-      if (object->get_id() == td_api::error::ID) {
-        return;
-      }
+      send_query(std::move(chats), [this](Object object) {
+        if (object->get_id() == td_api::error::ID) {
+          return;
+        }
 
-      auto chats = td::move_tl_object_as<td_api::chats>(object);
+        auto chats = td::move_tl_object_as<td_api::chats>(object);
 
-      // if(id==td::td_api::chatTypeSupergroup::ID){
-      this->last_chat = 0;
-      this->total_chat = chats->total_count_;
+        // if(id==td::td_api::chatTypeSupergroup::ID){
+        this->last_chat = 0;
+        this->total_chat = chats->total_count_;
 
-      for (int i = 0; i < chats->total_count_; i++) {
-        auto chat = td_api::make_object<td_api::getChat>();
-        chat->chat_id_ = chats->chat_ids_[i];
-        send_query(std::move(chat), [this](Object object) {
-          if (object->get_id() == td_api::error::ID) {
-            return;
-          }
+        for (int i = 0; i < chats->total_count_; i++) {
+          auto chat = td_api::make_object<td_api::getChat>();
+          chat->chat_id_ = chats->chat_ids_[i];
+          send_query(std::move(chat), [this](Object object) {
+            if (object->get_id() == td_api::error::ID) {
+              return;
+            }
 
-          auto chat = td::move_tl_object_as<td_api::chat>(object);
-          if (chat->type_->get_id() == td::td_api::chatTypeSupergroup::ID) {
+            auto chat = td::move_tl_object_as<td_api::chat>(object);
+            if (chat->type_->get_id() == td::td_api::chatTypeSupergroup::ID) {
 
-            channels.push_back(channel(chat->id_, chat->title_));
-            // this->chats[chat->id_]=chat->title_;
-          }
-          this->last_chat++;
-          if (last_chat == this->total_chat) {
-            this->CheckDBChannels();
-          }
-        });
-      }
-    });
+              channels.push_back(channel(chat->id_, chat->title_));
+              // this->chats[chat->id_]=chat->title_;
+            }
+            this->last_chat++;
+            if (last_chat == this->total_chat) {
+              this->CheckDBChannels();
+            }
+          });
+        }
+      });
   }
-};
+  };

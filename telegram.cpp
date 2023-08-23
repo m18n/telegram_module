@@ -89,11 +89,8 @@ void TelegramClient::on_authorization_state_update() {
           },
           [this](td_api::authorizationStateWaitCode &) {
             std::cout << "Enter authentication code: " << std::flush;
-            std::string code;
-            std::cin >> code;
-            send_query(
-                td_api::make_object<td_api::checkAuthenticationCode>(code),
-                create_authentication_query_handler());
+            AuthInputCode();
+            
           },
           [this](td_api::authorizationStateWaitRegistration &) {
             std::string first_name;
@@ -123,8 +120,8 @@ void TelegramClient::on_authorization_state_update() {
             request->database_directory_ = "tdlib";
             request->use_message_database_ = true;
             request->use_secret_chats_ = true;
-            request->api_id_ = 94575;
-            request->api_hash_ = "a3406de8d171bb422bb6ddf3bbd800e2";
+            request->api_id_ = 6329391;
+            request->api_hash_ = "66791aca091c7a10cccf5a9998d80d0c";
             request->system_language_code_ = "en";
             request->device_model_ = "Desktop";
             request->application_version_ = "1.0";
