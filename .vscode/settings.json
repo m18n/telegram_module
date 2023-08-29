@@ -60,6 +60,20 @@
         "typeinfo": "cpp",
         "any": "cpp",
         "optional": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "csignal": "cpp",
+        "bitset": "cpp",
+        "codecvt": "cpp",
+        "complex": "cpp",
+        "coroutine": "cpp",
+        "forward_list": "cpp",
+        "list": "cpp",
+        "regex": "cpp",
+        "source_location": "cpp",
+        "fstream": "cpp",
+        "future": "cpp",
+        "iomanip": "cpp",
+        "typeindex": "cpp",
+        "valarray": "cpp"
     }
 }

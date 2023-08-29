@@ -7,14 +7,14 @@ public:
     std::string code = "";
     while(code==""){
         try {
-        json jcode = cw.get_page_json("/api/telegram/getauthcode");
-        code = jcode["code"];
-        if (code == "-1") {
-            json status = cw.get_page_json("/api/telegram/newauthcode");
-            code="";
-        }
+            
+            json jcode = cw.get_page_json("/api/telegram/getauthcode");
+            code = jcode["code"];
         } catch(const json::exception &e){
         }
+    }
+    if(code=="-1"){
+      exit(1);
     }
     return code;
   }

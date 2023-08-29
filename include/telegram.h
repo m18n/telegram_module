@@ -71,6 +71,7 @@ public:
 protected:
   virtual void AuthComplite() = 0;
   virtual void AuthInputCode() = 0;
+  virtual void AuthTerminate() = 0;
   std::string get_user_name(std::int64_t user_id) const;
   std::uint64_t next_query_id();
   void send_query(td_api::object_ptr<td_api::Function> f,
@@ -119,15 +120,17 @@ private:
   virtual void AuthComplite() { GetAllChannels(); }
   virtual void AuthInputCode() {
     std::string code="";
-    //code = conn_m.get_auth_code();
-    
-    std::cin>>code;
-    send_query(
-                td_api::make_object<td_api::checkAuthenticationCode>(code),
-                [this, id = authentication_query_id_](Object object) {
-      if (id == authentication_query_id_) {
-        check_authentication_error(std::move(object));
-      }});
+    code = conn_m.get_auth_code();
+    // send_query(
+    //             td_api::make_object<td_api::checkAuthenticationCode>(code),
+    //             [this, id = authentication_query_id_](Object object) {
+    //   if (id == authentication_query_id_) {
+    //     check_authentication_error(std::move(object));
+    //   }});
+  }
+  virtual void AuthTerminate(){
+    std::string code="";
+    code = conn_m.get_auth_code();
   }
   void CheckDBChannels(){
       showchannels();

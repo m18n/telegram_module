@@ -47,22 +47,32 @@ void TelegramClient::on_authorization_state_update() {
       overloaded(
           [this](td_api::authorizationStateReady &) {
             are_authorized_ = true;
-            AuthComplite();
             std::cout << "Authorization is completed" << std::endl;
+            AuthComplite();
+          },
+          
+          [this](td_api::updateAuthorizationState &) {
+            are_authorized_ = true;
+            std::cout << "Authorization is completed" << std::endl;
+            AuthComplite();
           },
           [this](td_api::authorizationStateLoggingOut &) {
             are_authorized_ = false;
             std::cout << "Logging out" << std::endl;
+            AuthTerminate();
           },
           [this](td_api::authorizationStateClosing &) {
             std::cout << "Closing" << std::endl;
+            AuthTerminate();
           },
           [this](td_api::authorizationStateClosed &) {
             are_authorized_ = false;
             need_restart_ = true;
             std::cout << "Terminated" << std::endl;
+            AuthTerminate();
           },
           [this](td_api::authorizationStateWaitPhoneNumber &) {
+            std::cout<<"PHONEE\n";
             send_query(
                 td_api::make_object<td_api::setAuthenticationPhoneNumber>(
                     "+380970018947", nullptr),
