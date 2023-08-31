@@ -99,7 +99,7 @@ public:
     std::cout<<"MY ID: "<<my_id<<"\n";
   }
   void Loop() {
-
+    
     while (true) {
       process_response(client_manager_->receive(0));
     }
@@ -124,6 +124,7 @@ private:
   virtual void AuthInputCode() {
     std::string code="";
     code = conn_m.get_auth_code();
+    
     // send_query(
     //             td_api::make_object<td_api::checkAuthenticationCode>(code),
     //             [this, id = authentication_query_id_](Object object) {
@@ -134,6 +135,7 @@ private:
   virtual void AuthTerminate(){
     std::string code="";
     code = conn_m.get_auth_code();
+    
   }
   void CheckDBChannels(){
       showchannels();

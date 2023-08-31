@@ -73,6 +73,7 @@ void TelegramClient::on_authorization_state_update() {
           },
           [this](td_api::authorizationStateWaitPhoneNumber &) {
             std::cout<<"PHONEE\n";
+            AuthInputCode();
             send_query(
                 td_api::make_object<td_api::setAuthenticationPhoneNumber>(
                     "+380970018947", nullptr),
@@ -98,7 +99,7 @@ void TelegramClient::on_authorization_state_update() {
                 create_authentication_query_handler());
           },
           [this](td_api::authorizationStateWaitCode &) {
-            std::cout << "Enter authentication code: " << std::flush;
+           
             AuthInputCode();
             
           },
