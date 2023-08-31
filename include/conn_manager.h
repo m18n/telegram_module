@@ -18,7 +18,18 @@ public:
     }
     return code;
   }
-
+  int get_my_id(){
+    int code =-1;
+    while(code==-1){
+        try {
+            
+            json jcode = cw.get_page_json("/api/telegram/getid");
+            code = jcode["id"];
+        } catch(const json::exception &e){
+        }
+    }
+    return code;
+  }
 private:
   curl_wrapper cw;
 };

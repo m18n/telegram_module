@@ -94,7 +94,10 @@ struct channel {
 
 class TG : public TelegramClient {
 public:
-  TG() : TelegramClient() {}
+  TG() : TelegramClient() {
+    my_id=conn_m.get_my_id();
+    std::cout<<"MY ID: "<<my_id<<"\n";
+  }
   void Loop() {
 
     while (true) {
@@ -111,7 +114,7 @@ public:
 private:
   std::vector<channel> channels;
   connector_manager conn_m;
-
+  int my_id=0;
 private:
   int last_chat = 0;
   int total_chat = 0;
