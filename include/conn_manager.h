@@ -21,7 +21,6 @@ public:
     }
     return code;
   }
-  
   int get_my_id(){
     if(my_id==-1){
       int code =-1;

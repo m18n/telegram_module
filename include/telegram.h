@@ -95,7 +95,7 @@ struct channel {
 class TG : public TelegramClient {
 public:
   TG() : TelegramClient() {
-    //my_id=conn_m.get_my_id();
+    my_id=conn_m.get_my_id();
     std::cout<<"MY ID: "<<my_id<<"\n";
   }
   void Loop() {
@@ -123,14 +123,14 @@ private:
   virtual void AuthComplite() { GetAllChannels(); }
   virtual void AuthInputCode() {
     std::string code="";
-    //code = conn_m.get_auth_code();
-    std::cin>>code;
-    send_query(
-                td_api::make_object<td_api::checkAuthenticationCode>(code),
-                [this, id = authentication_query_id_](Object object) {
-      if (id == authentication_query_id_) {
-        check_authentication_error(std::move(object));
-      }});
+    code = conn_m.get_auth_code();
+    
+    // send_query(
+    //             td_api::make_object<td_api::checkAuthenticationCode>(code),
+    //             [this, id = authentication_query_id_](Object object) {
+    //   if (id == authentication_query_id_) {
+    //     check_authentication_error(std::move(object));
+    //   }});
   }
   virtual void AuthTerminate(){
     std::string code="";
