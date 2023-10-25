@@ -7,7 +7,11 @@ std::string TelegramClient::get_user_name(std::int64_t user_id) const {
   }
   return it->second->first_name_ + " " + it->second->last_name_;
 }
-
+void getcode(t_json json_send,t_json json_answer){
+  static int i=0;
+  std::cout<<"\n INDEX:"<<i<<" CODE: "<<json_answer["data"].dump()<<"\n\n";
+  i++;
+}
 std::uint64_t TelegramClient::next_query_id() { return ++current_query_id_; }
 void TelegramClient::send_query(td_api::object_ptr<td_api::Function> f,
                                 std::function<void(Object)> handler) {

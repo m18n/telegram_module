@@ -6,7 +6,7 @@
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
-#include "conn_manager.h"
+#include "connector_manager.h"
 #include <cstdint>
 #include <functional>
 #include <iostream>
@@ -91,11 +91,22 @@ struct channel {
   int64_t id;
   std::string name;
 };
-
+void getcode(t_json json_send,t_json json_answer);
 class TG : public TelegramClient {
 public:
   TG() : TelegramClient() {
-    my_id=conn_m.get_my_id();
+    //my_id=conn_m.get_my_id();
+    t_json json;
+    json["meta"]["$type_event"]="req";
+    json["meta"]["$type_obj"]="code";
+    json["meta"]["$list_servers"][0]={{"name","telegram"}};
+    json["meta"]["$list_servers"][1]={{"name","tasker"}};
+    json["meta"]["$list_servers"][2]={{"name","web"}};
+    std::cout<<"SERVERS: " <<json["meta"]["$list_servers"].dump()<<"\n";
+    for(int i=0;i<20;i++){
+    conn_m.send(json,getcode);
+    }
+    
     std::cout<<"MY ID: "<<my_id<<"\n";
   }
   void Loop() {
@@ -123,7 +134,7 @@ private:
   virtual void AuthComplite() { GetAllChannels(); }
   virtual void AuthInputCode() {
     std::string code="";
-    code = conn_m.get_auth_code();
+    //code = conn_m.get_auth_code();
     
     // send_query(
     //             td_api::make_object<td_api::checkAuthenticationCode>(code),
@@ -134,7 +145,7 @@ private:
   }
   virtual void AuthTerminate(){
     std::string code="";
-    code = conn_m.get_auth_code();
+    //code = conn_m.get_auth_code();
     
   }
   void CheckDBChannels(){
