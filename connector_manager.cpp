@@ -1,9 +1,15 @@
+
 #include"connector_manager.h"
 void init_return_data(return_data* data){
   data->callback=NULL;
   data->json_send.clear();
   data->respon_id=-1;
   data->server_hash="";
+}
+void init_task(task* ev){
+  ev->json.clear();
+  ev->note=false;
+  ev->empty=true;
 }
 std::string GetLocalIP() {
      struct ifaddrs* ifAddrStruct = nullptr;

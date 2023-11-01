@@ -102,10 +102,12 @@ public:
     json["meta"]["$list_servers"][0]={{"name","telegram"}};
     json["meta"]["$list_servers"][1]={{"name","tasker"}};
     json["meta"]["$list_servers"][2]={{"name","web"}};
+    json["data"]={{"test","\n%$sd\"}f&"}};
     std::cout<<"SERVERS: " <<json["meta"]["$list_servers"].dump()<<"\n";
-    for(int i=0;i<20;i++){
     conn_m.send(json,getcode);
-    }
+    // for(int i=0;i<1;i++){
+    // conn_m.send(json,getcode);
+    // }
     
     std::cout<<"MY ID: "<<my_id<<"\n";
   }
