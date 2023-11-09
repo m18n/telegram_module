@@ -16,7 +16,7 @@ void getcode(t_json json_send,t_json json_answer){
   if(i==0){
     start_time = std::chrono::high_resolution_clock::now();
     
-  }else if(i==29){
+  }else if(i==999){
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
         end_time - start_time);

@@ -202,11 +202,12 @@ struct connection {
   std::chrono::_V2::system_clock::time_point last_try;
   int count_try = 0;
   std::string respon_str;
+  std::string server_hash="1";
+  std::string hash_worker="1";
 };
 class connector_manager {
 private:
-  std::string hash_worker = "";
-  std::string server_hash = "1";
+  
   time_t start_time;
   std::string local_ip;
   manager_task m_task;
@@ -225,10 +226,18 @@ private:
   std::vector<connection> connections;
 
 private:
+int find_conn(std::string address){
+  for(int i=0;i<connections.size();i++){
+    if(connections[i].address==address){
+      return i;
+    }
+  }
+  return -1;
+}
   void get_myid(std::string address, bool loop) {
     std::string hash_worker = "";
     std::string server_hash;
-
+    int index=find_conn(address);
     t_json json;
     std::string name_server = NAME_SERVER;
     json["$time"] = std::to_string(start_time);
@@ -262,12 +271,14 @@ private:
       }
     }
 
-    this->hash_worker = hash_worker;
-    this->server_hash = server_hash;
+    connections[index].hash_worker = hash_worker;
+    connections[index].server_hash = server_hash;
     std::cout << "SERVER ID: " << server_hash << " ID: " << hash_worker << "\n";
   }
 
 public:
+
+
   connector_manager() {
     start_time = time(nullptr);
     local_ip = GetLocalIP();
@@ -279,12 +290,14 @@ public:
     start_loop();
   }
   void exit(std::string address) {
+    int index=find_conn(address);
     std::string code = "";
     std::string ns = NAME_SERVER;
     while (code == "") {
       try {
-        code = cw.get_page(address, "/api/client/" + server_hash + "/" + ns +
-                                        "/command/" + hash_worker + "/exit");
+        
+        code = cw.get_page(address, "/api/client/" + connections[index].server_hash + "/" + ns +
+                                        "/command/" + connections[index].hash_worker + "/exit");
       } catch (const t_json::exception &e) {
       }
     }
@@ -322,13 +335,13 @@ public:
     int id = -1;
     std::string server_id;
     std::string ns = NAME_SERVER;
-
+    int index=find_conn(address);
     while (id == -1) {
       try {
         t_json jsonres =
             cw.get_page_json(address,
-                             "/api/send/" + server_hash + "/" + ns +
-                                 "/command/" + hash_worker + "/event",
+                             "/api/send/" + connections[index].server_hash + "/" + ns +
+                                 "/command/" + connections[index].hash_worker + "/event",
                              json.dump());
         // std::cout<<"RES: "<<jsonres.dump()<<"\n";
         if (jsonres.contains("$error")) {
@@ -346,7 +359,7 @@ public:
     d.callback = callback;
     d.respon_id = id;
     d.json_send = json;
-    d.server_hash = server_hash;
+    d.server_hash = connections[index].server_hash;
     m_returns.add(d);
   }
   void send_response(t_json json_req, t_json json_res) {
@@ -360,13 +373,13 @@ public:
     jdata["meta"]["$type_obj"] = json_res["meta"]["$type_obj"];
     std::reverse(jdata["meta"]["$list_servers"].begin(),
                  jdata["meta"]["$list_servers"].end());
-
+    int index=find_conn(json_req["address"]);
     while (id == -1) {
       try {
         t_json jsonres =
             cw.get_page_json(json_req["address"],
-                             "/api/send/" + server_hash + "/" + ns +
-                                 "/command/" + hash_worker + "/event",
+                             "/api/send/" + connections[index].server_hash + "/" + ns +
+                                 "/command/" + connections[index].hash_worker + "/event",
                              jdata.dump());
         // std::cout<<"RES: "<<jsonres.dump()<<"\n";
         if (jsonres.contains("$error")) {
@@ -401,11 +414,11 @@ public:
     std::string server_id;
     std::string ns = NAME_SERVER;
     std::string st = (std::string)json_event["id"];
-
+    int index=find_conn(json_event["address"]);
     try {
       t_json jsonres = cw.get_page_json(
           json_event["address"],
-          "/api/send/" + server_hash + "/" + ns + "/command/" + hash_worker +
+          "/api/send/" + connections[index].server_hash + "/" + ns + "/command/" + connections[index].hash_worker +
               "/event/start/" + (std::string)json_event["id"]);
       std::cout << "START EVENT: " << jsonres.dump()
                 << " Hash ID:" << json_event["id"]
@@ -427,12 +440,12 @@ public:
     int id = -1;
     std::string server_id;
     std::string ns = NAME_SERVER;
-
+    int index=find_conn(json_event["address"]);
     try {
 
       t_json jsonres = cw.get_page_json(
           json_event["address"],
-          "/api/send/" + server_hash + "/" + ns + "/command/" + hash_worker +
+          "/api/send/" + connections[index].server_hash + "/" + ns + "/command/" + connections[index].hash_worker +
               "/event/finish/" + (std::string)json_event["id"]);
       std::cout << "END EVENT: " << jsonres.dump()
                 << " Hash ID:" << json_event["id"]
@@ -535,8 +548,8 @@ public:
         }
         std::string res_str = "";
         res_str = cw.get_page(connections[i].address,
-                              "/api/get/" + server_hash + "/" + ns +
-                                  "/command/" + hash_worker + "/event");
+                              "/api/get/" +  connections[i].server_hash + "/" + ns +
+                                  "/command/" +  connections[i].hash_worker + "/event");
 
         if (res_str == "") {
           connections[i].last_try = std::chrono::high_resolution_clock::now();
