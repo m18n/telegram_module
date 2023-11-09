@@ -140,27 +140,15 @@ class manager_task {
   std::mutex m;
   std::vector<task> buffer;
 };
-class connector_manager {
- private:
-  std::string hash_worker = "";
-  std::string server_hash;
-  time_t start_time;
-  std::string local_ip;
-  manager_task m_task;
-  std::thread* th;
-  std::thread* th_worker;
-  std::vector<return_data> returns;
-  std::vector<handler> handlers;
-  t_json last_events;
-  std::condition_variable cv;
-  bool empty_thread = false;
-  std::mutex mt;
-  curl_wrapper cw;
-  std::mutex mt_ret;
-  bool work_loop = false;
+class manager_returns{
+public:
+  manager_returns(){
+    returns.resize(25);
+  }
+  ~manager_returns(){
 
- private:
-  void add_returns(return_data d) {
+  }
+  void add(return_data d) {
     mt_ret.lock();
     for (int i = 0; i < returns.size(); i++) {
       if (returns[i].respon_id == -1) {
@@ -173,7 +161,7 @@ class connector_manager {
     returns.push_back(d);
      mt_ret.unlock();
   }
-  void call_return(int respon_id,std::string server_hash,t_json answer){
+  void call(int respon_id,std::string server_hash,t_json answer){
     mt_ret.lock();
     for (int i = 0; i < returns.size(); i++) {
       if (returns[i].respon_id == respon_id &&
@@ -184,7 +172,19 @@ class connector_manager {
     }
     mt_ret.unlock();
   }
-  void delete_return(return_data d) {
+  bool check(int respon_id,std::string server_hash){
+    mt_ret.lock();
+    for (int i = 0; i < returns.size(); i++) {
+      if (returns[i].respon_id == respon_id &&
+          returns[i].server_hash == server_hash) {
+          mt_ret.unlock();
+        return true;
+      }
+    }
+    mt_ret.unlock();
+    return false;
+  }
+  void delete_object(return_data d) {
     mt_ret.lock();
     for (int i = 0; i < returns.size(); i++) {
       if (returns[i].respon_id == d.respon_id) {
@@ -195,6 +195,32 @@ class connector_manager {
     }
     mt_ret.unlock();
   }
+private:
+  std::vector<return_data> returns;
+  std::mutex mt_ret;
+};
+class connector_manager {
+ private:
+  std::string hash_worker = "";
+  std::string server_hash;
+  time_t start_time;
+  std::string local_ip;
+  manager_task m_task;
+  manager_returns m_returns;
+  std::thread* th;
+  std::thread* th_worker;
+  
+  std::vector<handler> handlers;
+  t_json last_events;
+  std::condition_variable cv;
+  bool empty_thread = false;
+  std::mutex mt;
+  curl_wrapper cw;
+  
+  bool work_loop = false;
+
+ private:
+  
   
   void get_my_id() {
     std::string hash_worker = "";
@@ -227,7 +253,7 @@ class connector_manager {
   connector_manager() {
     start_time = time(nullptr);
     local_ip = GetLocalIP();
-    returns.resize(25);
+    
     get_my_id();
     start_loop();
   }
@@ -277,7 +303,7 @@ class connector_manager {
     d.respon_id = id;
     d.json_send = json;
     d.server_hash = server_hash;
-    add_returns(d);
+    m_returns.add(d);
   }
   void send_response(t_json json_req, t_json json_res) {
     int id = -1;
@@ -309,7 +335,8 @@ class connector_manager {
       }
     }
     std::cout << "RESPON: " << json_req["meta"]["$respon_id"].dump() << "\n";
-    end_event(json_req["id"]);
+    if(m_returns.check(json_req["meta"]["$respon_id"],json_req["meta"]["$server_hash"]))
+      end_event(json_req);
   }
   void add_handler(std::string nameobj,
                    void (*callback)(connector_manager* conn, t_json json_req)) {
@@ -319,22 +346,25 @@ class connector_manager {
     handlers.push_back(h);
   }
   t_json get_all_events() { return last_events; }
-  int start_event(std::string event_id) {
+  int start_event(t_json& json_event) {
     int id = -1;
     std::string server_id;
     std::string ns = NAME_SERVER;
-
+    std::string st=(std::string)json_event["id"];
     while (id == -1) {
       try {
         t_json jsonres = cw.get_page_json("/api/send/" + server_hash + "/" +
                                           ns + "/command/" + hash_worker +
-                                          "/event/start/" + event_id);
-        // std::cout<<"RES: "<<jsonres.dump()<<"\n";
-        if (jsonres.contains("$error")) {
-          get_my_id();
-        } else {
-          id = jsonres["$status"];
+                                          "/event/start/" + (std::string)json_event["id"]);
+        std::cout<<"START EVENT: "<<jsonres.dump()<<" Hash ID:"<<json_event["id"] <<" RESPON ID: "<<json_event["meta"]["$respon_id"]<<"\n";
+        if(!jsonres.empty()){
+          if (jsonres.contains("$error")) {
+            get_my_id();
+          } else {
+            id = jsonres["$status"];
+          }
         }
+        
         if (id == -1)
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
       } catch (const t_json::exception& e) {
@@ -342,22 +372,24 @@ class connector_manager {
     }
     return id;
   }
-  int end_event(std::string event_id) {
+  int end_event(t_json& json_event) {
     int id = -1;
     std::string server_id;
     std::string ns = NAME_SERVER;
-
+  
     while (id == -1) {
       try {
         t_json jsonres = cw.get_page_json("/api/send/" + server_hash + "/" +
                                           ns + "/command/" + hash_worker +
-                                          "/event/finish/" + event_id);
-        std::cout << jsonres.dump() << "\n";
+                                          "/event/finish/" + (std::string)json_event["id"]);
+        std::cout <<"END EVENT: "<< jsonres.dump()<<" Hash ID:"<<json_event["id"] <<" RESPON ID: "<<json_event["meta"]["$respon_id"]<< "\n";
         // std::cout<<"RES: "<<jsonres.dump()<<"\n";
-        if (jsonres.contains("$error")) {
-          get_my_id();
-        } else {
-          id = jsonres["$status"];
+        if(!jsonres.empty()){
+          if (jsonres.contains("$error")) {
+            get_my_id();
+          } else {
+            id = jsonres["$status"];
+          }
         }
         if (id == -1)
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -390,19 +422,19 @@ class connector_manager {
       }
       start_time = std::chrono::high_resolution_clock::now();
       if (json["meta"]["$type_event"] == "res") {
-          if (start_event(json["id"]) != -2) {
-            call_return(json["meta"]["$respon_id"],
+          if (start_event(json) == 0) {
+            m_returns.call(json["meta"]["$respon_id"],
                                    json["meta"]["$server_hash"], json);
-            end_event(json["id"]);
+            end_event(json);
           }
       } else if (json["meta"]["$type_event"] == "req") {
         for (int j = 0; j < handlers.size(); j++) {
           if (handlers[j].nameobj == json["meta"]["$type_obj"]) {
             std::cout<<"START JSON: "<<json["meta"]["$respon_id"]<<"\n";
-            if (start_event(json["id"]) != -2) {
+            if (start_event(json) == 0) {
               std::cout<<"CALLBACK: "<<json["meta"]["$respon_id"]<<"\n";
               handlers[j].callback(this, json);
-              end_event(json["id"]);
+              end_event(json);
             }
             break;
           }
