@@ -1,17 +1,18 @@
 #pragma once
-#include <arpa/inet.h>
-#include <ifaddrs.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <chrono>
-#include <condition_variable>
-#include <iostream>
-#include <thread>
 #include "curl_wrapper.h"
 #include "mutex"
-#include <cstdlib>  // Include the C Standard Library for random number generation
-#include <ctime>  
+#include <arpa/inet.h>
+#include <chrono>
+#include <condition_variable>
+#include <cstdlib> // Include the C Standard Library for random number generation
+#include <ctime>
+#include <ifaddrs.h>
+#include <iostream>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <thread>
+#include <unistd.h>
+namespace connector {
 #define NAME_SERVER "telegram"
 std::string GetLocalIP();
 struct return_data {
@@ -21,11 +22,11 @@ struct return_data {
   int respon_id = -1;
   void (*callback)(t_json jsonsend, t_json json_answer) = NULL;
 };
-void init_return_data(return_data* data);
+void init_return_data(return_data *data);
 class connector_manager;
 struct handler {
   std::string nameobj = "";
-  void (*callback)(connector_manager* conn, t_json json_req) = NULL;
+  void (*callback)(connector_manager *conn, t_json json_req) = NULL;
 };
 struct event {
   void (*handling)(t_json json) = NULL;
@@ -36,9 +37,9 @@ struct task {
   bool note = false;
   bool empty = false;
 };
-void init_task(task* ev);
+void init_task(task *ev);
 class manager_task {
- public:
+public:
   manager_task() { buffer.resize(25); }
   void add(t_json json) {
     // for(int i=0;i<buffer_events.size();i++){
@@ -136,18 +137,14 @@ class manager_task {
   }
   ~manager_task() {}
 
- private:
+private:
   std::mutex m;
   std::vector<task> buffer;
 };
-class manager_returns{
+class manager_returns {
 public:
-  manager_returns(){
-    returns.resize(25);
-  }
-  ~manager_returns(){
-
-  }
+  manager_returns() { returns.resize(25); }
+  ~manager_returns() {}
   void add(return_data d) {
     mt_ret.lock();
     for (int i = 0; i < returns.size(); i++) {
@@ -157,27 +154,27 @@ public:
         return;
       }
     }
-   
+
     returns.push_back(d);
-     mt_ret.unlock();
+    mt_ret.unlock();
   }
-  void call(int respon_id,std::string server_hash,t_json answer){
+  void call(int respon_id, std::string server_hash, t_json answer) {
     mt_ret.lock();
     for (int i = 0; i < returns.size(); i++) {
       if (returns[i].respon_id == respon_id &&
           returns[i].server_hash == server_hash) {
-        returns[i].callback(returns[i].json_send,answer);
+        returns[i].callback(returns[i].json_send, answer);
         init_return_data(&returns[i]);
       }
     }
     mt_ret.unlock();
   }
-  bool check(int respon_id,std::string server_hash){
+  bool check(int respon_id, std::string server_hash) {
     mt_ret.lock();
     for (int i = 0; i < returns.size(); i++) {
       if (returns[i].respon_id == respon_id &&
           returns[i].server_hash == server_hash) {
-          mt_ret.unlock();
+        mt_ret.unlock();
         return true;
       }
     }
@@ -195,34 +192,40 @@ public:
     }
     mt_ret.unlock();
   }
+
 private:
   std::vector<return_data> returns;
   std::mutex mt_ret;
 };
+struct connection {
+  std::string address;
+  std::chrono::_V2::system_clock::time_point last_try;
+  int count_try = 0;
+  std::string respon_str;
+};
 class connector_manager {
- private:
+private:
   std::string hash_worker = "";
-  std::string server_hash;
+  std::string server_hash = "1";
   time_t start_time;
   std::string local_ip;
   manager_task m_task;
   manager_returns m_returns;
-  std::thread* th;
-  std::thread* th_worker;
-  
+  std::thread *th;
+  std::thread *th_worker;
+
   std::vector<handler> handlers;
   t_json last_events;
   std::condition_variable cv;
   bool empty_thread = false;
   std::mutex mt;
   curl_wrapper cw;
-  
-  bool work_loop = false;
 
- private:
-  
-  
-  void get_my_id() {
+  bool work_loop = false;
+  std::vector<connection> connections;
+
+private:
+  void get_myid(std::string address, bool loop) {
     std::string hash_worker = "";
     std::string server_hash;
 
@@ -230,17 +233,32 @@ class connector_manager {
     std::string name_server = NAME_SERVER;
     json["$time"] = std::to_string(start_time);
     json["$ip"] = local_ip;
-    while (hash_worker == "") {
+    if (loop == false) {
       try {
-        t_json jcode = cw.get_page_json("/api/client/" + name_server + "/getid",
-                                        json.dump());
-        hash_worker = jcode["$hash_worker"];
-        server_hash = jcode["$server_hash"];
-        if (hash_worker == "") {
-          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        t_json jcode = cw.get_page_json(
+            address, "/api/client/" + name_server + "/getid", json.dump());
+        if (!jcode.empty()) {
+          hash_worker = jcode["$hash_worker"];
+          server_hash = jcode["$server_hash"];
         }
-      } catch (const t_json::exception& e) {
+      } catch (const t_json::exception &e) {
         // std::cout<<"ERROR: "<< e.what()<<"\n";
+      }
+    } else {
+      while (hash_worker == "") {
+        try {
+          t_json jcode = cw.get_page_json(
+              address,"/api/client/" + name_server + "/getid", json.dump());
+          if (!jcode.empty()) {
+            hash_worker = jcode["$hash_worker"];
+            server_hash = jcode["$server_hash"];
+          }
+          if (hash_worker == "") {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+          }
+        } catch (const t_json::exception &e) {
+          // std::cout<<"ERROR: "<< e.what()<<"\n";
+        }
       }
     }
 
@@ -249,13 +267,33 @@ class connector_manager {
     std::cout << "SERVER ID: " << server_hash << " ID: " << hash_worker << "\n";
   }
 
- public:
+public:
   connector_manager() {
     start_time = time(nullptr);
     local_ip = GetLocalIP();
-    
-    get_my_id();
+  }
+  void on() {
+    for (int i = 0; i < connections.size(); i++) {
+      get_myid(connections[i].address,true);
+    }
     start_loop();
+  }
+  void exit(std::string address) {
+    std::string code = "";
+    std::string ns = NAME_SERVER;
+    while (code == "") {
+      try {
+        code = cw.get_page(address, "/api/client/" + server_hash + "/" + ns +
+                                        "/command/" + hash_worker + "/exit");
+      } catch (const t_json::exception &e) {
+      }
+    }
+  }
+  void off() {
+    finish_loop();
+    for (int i = 0; i < connections.size(); i++) {
+      exit(connections[i].address);
+    }
   }
   // std::string get_auth_code() {
   //   std::string code = "0";
@@ -274,8 +312,13 @@ class connector_manager {
   //   }
   //   return code;
   // }
-
-  void send(t_json json, void (*callback)(t_json jsonsend, t_json jsonanswer)) {
+  void add_connection(std::string conn) {
+    connection con;
+    con.address = conn;
+    connections.push_back(con);
+  }
+  void send(std::string address, t_json json,
+            void (*callback)(t_json jsonsend, t_json jsonanswer)) {
     int id = -1;
     std::string server_id;
     std::string ns = NAME_SERVER;
@@ -283,18 +326,19 @@ class connector_manager {
     while (id == -1) {
       try {
         t_json jsonres =
-            cw.get_page_json("/api/send/" + server_hash + "/" + ns +
+            cw.get_page_json(address,
+                             "/api/send/" + server_hash + "/" + ns +
                                  "/command/" + hash_worker + "/event",
                              json.dump());
         // std::cout<<"RES: "<<jsonres.dump()<<"\n";
         if (jsonres.contains("$error")) {
-          get_my_id();
+          get_myid(address, true);
         } else {
           id = jsonres["$respon_id"];
         }
         if (id == -1)
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      } catch (const t_json::exception& e) {
+      } catch (const t_json::exception &e) {
       }
     }
     // std::cout<<"ID RESPON: "<<id<<"\n";
@@ -320,82 +364,91 @@ class connector_manager {
     while (id == -1) {
       try {
         t_json jsonres =
-            cw.get_page_json("/api/send/" + server_hash + "/" + ns +
+            cw.get_page_json(json_req["address"],
+                             "/api/send/" + server_hash + "/" + ns +
                                  "/command/" + hash_worker + "/event",
                              jdata.dump());
         // std::cout<<"RES: "<<jsonres.dump()<<"\n";
         if (jsonres.contains("$error")) {
-          get_my_id();
+          get_myid(json_req["address"],true);
         } else {
           id = jsonres["$respon_id"];
         }
         if (id == -1)
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      } catch (const t_json::exception& e) {
+      } catch (const t_json::exception &e) {
       }
     }
     std::cout << "RESPON: " << json_req["meta"]["$respon_id"].dump() << "\n";
-    if(m_returns.check(json_req["meta"]["$respon_id"],json_req["meta"]["$server_hash"]))
-      end_event(json_req);
+    if (m_returns.check(json_req["meta"]["$respon_id"],
+                        json_req["meta"]["$server_hash"])) {
+      int ret = -1;
+      while (ret == -1) {
+        ret = end_event(json_req);
+      }
+    }
   }
   void add_handler(std::string nameobj,
-                   void (*callback)(connector_manager* conn, t_json json_req)) {
+                   void (*callback)(connector_manager *conn, t_json json_req)) {
     handler h;
     h.callback = callback;
     h.nameobj = nameobj;
     handlers.push_back(h);
   }
   t_json get_all_events() { return last_events; }
-  int start_event(t_json& json_event) {
+  int start_event(t_json &json_event) {
     int id = -1;
     std::string server_id;
     std::string ns = NAME_SERVER;
-    std::string st=(std::string)json_event["id"];
-    while (id == -1) {
-      try {
-        t_json jsonres = cw.get_page_json("/api/send/" + server_hash + "/" +
-                                          ns + "/command/" + hash_worker +
-                                          "/event/start/" + (std::string)json_event["id"]);
-        std::cout<<"START EVENT: "<<jsonres.dump()<<" Hash ID:"<<json_event["id"] <<" RESPON ID: "<<json_event["meta"]["$respon_id"]<<"\n";
-        if(!jsonres.empty()){
-          if (jsonres.contains("$error")) {
-            get_my_id();
-          } else {
-            id = jsonres["$status"];
-          }
+    std::string st = (std::string)json_event["id"];
+
+    try {
+      t_json jsonres = cw.get_page_json(
+          json_event["address"],
+          "/api/send/" + server_hash + "/" + ns + "/command/" + hash_worker +
+              "/event/start/" + (std::string)json_event["id"]);
+      std::cout << "START EVENT: " << jsonres.dump()
+                << " Hash ID:" << json_event["id"]
+                << " RESPON ID: " << json_event["meta"]["$respon_id"] << "\n";
+      if (!jsonres.empty()) {
+        if (jsonres.contains("$error")) {
+          get_myid(json_event["address"],false);
+        } else {
+          id = jsonres["$status"];
         }
-        
-        if (id == -1)
-          std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      } catch (const t_json::exception& e) {
       }
+
+    } catch (const t_json::exception &e) {
     }
+
     return id;
   }
-  int end_event(t_json& json_event) {
+  int end_event(t_json &json_event) {
     int id = -1;
     std::string server_id;
     std::string ns = NAME_SERVER;
-  
-    while (id == -1) {
-      try {
-        t_json jsonres = cw.get_page_json("/api/send/" + server_hash + "/" +
-                                          ns + "/command/" + hash_worker +
-                                          "/event/finish/" + (std::string)json_event["id"]);
-        std::cout <<"END EVENT: "<< jsonres.dump()<<" Hash ID:"<<json_event["id"] <<" RESPON ID: "<<json_event["meta"]["$respon_id"]<< "\n";
-        // std::cout<<"RES: "<<jsonres.dump()<<"\n";
-        if(!jsonres.empty()){
-          if (jsonres.contains("$error")) {
-            get_my_id();
-          } else {
-            id = jsonres["$status"];
-          }
+
+    try {
+
+      t_json jsonres = cw.get_page_json(
+          json_event["address"],
+          "/api/send/" + server_hash + "/" + ns + "/command/" + hash_worker +
+              "/event/finish/" + (std::string)json_event["id"]);
+      std::cout << "END EVENT: " << jsonres.dump()
+                << " Hash ID:" << json_event["id"]
+                << " RESPON ID: " << json_event["meta"]["$respon_id"] << "\n";
+      // std::cout<<"RES: "<<jsonres.dump()<<"\n";
+      if (!jsonres.empty()) {
+        if (jsonres.contains("$error")) {
+          get_myid(json_event["address"],false);
+        } else {
+          id = jsonres["$status"];
         }
-        if (id == -1)
-          std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      } catch (const t_json::exception& e) {
       }
+      
+    } catch (const t_json::exception &e) {
     }
+
     return id;
   }
   void worker_task() {
@@ -420,19 +473,20 @@ class connector_manager {
         }
         continue;
       }
+      bool job = false;
       start_time = std::chrono::high_resolution_clock::now();
       if (json["meta"]["$type_event"] == "res") {
-          if (start_event(json) == 0) {
-            m_returns.call(json["meta"]["$respon_id"],
-                                   json["meta"]["$server_hash"], json);
-            end_event(json);
-          }
+        if (start_event(json) == 0) {
+          m_returns.call(json["meta"]["$respon_id"],
+                         json["meta"]["$server_hash"], json);
+          end_event(json);
+        }
       } else if (json["meta"]["$type_event"] == "req") {
         for (int j = 0; j < handlers.size(); j++) {
           if (handlers[j].nameobj == json["meta"]["$type_obj"]) {
-            std::cout<<"START JSON: "<<json["meta"]["$respon_id"]<<"\n";
+            std::cout << "START JSON: " << json["meta"]["$respon_id"] << "\n";
             if (start_event(json) == 0) {
-              std::cout<<"CALLBACK: "<<json["meta"]["$respon_id"]<<"\n";
+              std::cout << "CALLBACK: " << json["meta"]["$respon_id"] << "\n";
               handlers[j].callback(this, json);
               end_event(json);
             }
@@ -442,98 +496,142 @@ class connector_manager {
       } else {
         continue;
       }
-      m_task.delete_object(json["id"]);
+      
+        m_task.delete_object(json["id"]);
+      
     }
   }
   void getevent() {
-    std::string res_str = "";
-     t_json json_temp;
+
+    t_json json_temp;
     std::string ns = NAME_SERVER;
     int col = 0;
-    while (res_str == "") {
-      col++;
-      res_str = cw.get_page("/api/get/" + server_hash + "/" + ns + "/command/" +
-                            hash_worker + "/event");
-      if (col >= 20) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-      } else if (col >= 5) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      }
-    }
-    if(res_str[0]=='{'){
-      json_temp=t_json::parse(res_str);
-      if(json_temp.contains("$error")){
-        get_my_id();
-        return;
-      }
-    }
-    size_t pos = 0;  // Знаходимо перше входження
-    t_json id;
-    t_json meta;
-    t_json data;
-  
-    int n = 0;
-    std::string str_size_json;
-    str_size_json.resize(10);
-    int int_size_json = 0;
-    int res_size = res_str.size();
-    char temp;
-    int index_object = 0;
-    bool jump = false;
+    int number_successfull = 0;
+    int col_try = 0;
+    auto start_event = std::chrono::high_resolution_clock::now();
+    auto end_event = std::chrono::high_resolution_clock::now();
+    auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(
+        end_event - start_event);
 
-    for (int i = 0; i < res_size; i++) {
-      if (res_str[i] == '{') {
-        memcpy(&str_size_json[0], &res_str[n], i - n);
-        str_size_json[i - n] = '\0';
-        int_size_json = atoi(str_size_json.c_str());
-        if (!jump) {
-          temp = res_str[i + int_size_json];
-          res_str[i + int_size_json] = '\0';
-          json_temp = t_json::parse(&res_str[i]);
-          res_str[i + int_size_json] = temp;
-          res_str[res_size] = '\0';
-        }
-        i += int_size_json;
-        if (index_object == 0) {  // id
-          id = json_temp;
+    while (true) {
+      if (dur.count() > 100 || number_successfull == connections.size()) {
+        break;
+      }
 
-          if (m_task.check_id(id["id"])) {
-            jump = true;
+      for (int i = 0; i < connections.size(); i++) {
+        number_successfull++;
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            end_time - connections[i].last_try);
+
+        if (connections[i].count_try >= 20) {
+          if (duration.count() < 1000) {
+            continue;
           }
+        } else if (connections[i].count_try > 5) {
+          if (duration.count() < 100) {
+            continue;
+          }
+        }
+        std::string res_str = "";
+        res_str = cw.get_page(connections[i].address,
+                              "/api/get/" + server_hash + "/" + ns +
+                                  "/command/" + hash_worker + "/event");
 
-        } else if (index_object == 1) {  // meta
-          meta = json_temp;
-        } else if (index_object == 2) {  // data
+        if (res_str == "") {
+          connections[i].last_try = std::chrono::high_resolution_clock::now();
+          connections[i].count_try++;
+          number_successfull = 0;
+        } else {
+          connections[i].count_try = 0;
+          connections[i].respon_str = std::move(res_str);
+        }
+      }
+      col_try++;
+      end_event = std::chrono::high_resolution_clock::now();
+      dur = std::chrono::duration_cast<std::chrono::milliseconds>(end_event -
+                                                                  start_event);
+    }
+    for (int i = 0; i < connections.size(); i++) {
+      if (connections[i].count_try != 0) {
+        continue;
+      }
+      json_temp.clear();
+      if (connections[i].respon_str[0] == '{') {
+        json_temp = t_json::parse(connections[i].respon_str);
+        if (json_temp.contains("$error")) {
+          get_myid(connections[i].address, false);
+          continue;
+        }
+      }
+      size_t pos = 0; // Знаходимо перше входження
+      t_json id;
+      t_json meta;
+      t_json data;
 
-          data = json_temp;
-          index_object = -1;
-          i++;
-          json_temp.clear();
+      int n = 0;
+      std::string str_size_json;
+      str_size_json.resize(10);
+      int int_size_json = 0;
+      int res_size = connections[i].respon_str.size();
+      char temp;
+      int index_object = 0;
+      bool jump = false;
+
+      for (int j = 0; j < res_size; j++) {
+        if (connections[i].respon_str[j] == '{') {
+          memcpy(&str_size_json[0], &connections[i].respon_str[n], j - n);
+          str_size_json[j - n] = '\0';
+          int_size_json = atoi(str_size_json.c_str());
           if (!jump) {
-            json_temp["id"] = id["id"];
-            json_temp["meta"] = meta;
-            json_temp["data"] = data;
-
-            m_task.add(json_temp);
-
-          } else {
-            jump = false;
+            temp = connections[i].respon_str[j + int_size_json];
+            connections[i].respon_str[j + int_size_json] = '\0';
+            json_temp = t_json::parse(&connections[i].respon_str[j]);
+            connections[i].respon_str[j + int_size_json] = temp;
+            connections[i].respon_str[res_size] = '\0';
           }
-        }
-        n = i;
-        index_object++;
-      }
-    }
+          j += int_size_json;
+          if (index_object == 0) { // id
+            id = json_temp;
 
-    m_task.delete_notnote();
-    m_task.note_all();
-    std::cout << "\nEVENT: " << res_str << "\n";
-    mt.lock();
-    if (empty_thread == false) {
-      empty_thread = true;
-      cv.notify_all();
+            if (m_task.check_id(id["id"])) {
+              jump = true;
+            }
+
+          } else if (index_object == 1) { // meta
+            meta = json_temp;
+          } else if (index_object == 2) { // data
+
+            data = json_temp;
+            index_object = -1;
+            j++;
+            json_temp.clear();
+            if (!jump) {
+              json_temp["id"] = id["id"];
+              json_temp["meta"] = meta;
+              json_temp["data"] = data;
+              json_temp["address"] = connections[i].address;
+              m_task.add(json_temp);
+
+            } else {
+              jump = false;
+            }
+          }
+          n = j;
+          index_object++;
+        }
+      }
+
+      m_task.delete_notnote();
+      m_task.note_all();
+      std::cout << "\nEVENT: " << connections[i].respon_str << "\n";
+      mt.lock();
+      if (empty_thread == false) {
+        empty_thread = true;
+        cv.notify_all();
+      }
+      mt.unlock();
     }
-    mt.unlock();
   }
   void start_loop() {
     work_loop = true;
@@ -553,18 +651,6 @@ class connector_manager {
     delete th;
     delete th_worker;
   }
-  ~connector_manager() {
-    finish_loop();
-    std::string code = "";
-    std::string ns = NAME_SERVER;
-    while (code == "") {
-      try {
-        code = cw.get_page("/api/client/" + server_hash + "/" + ns +
-                           "/command/" + hash_worker + "/exit");
-      } catch (const t_json::exception& e) {
-      }
-    }
-
-    std::cout << "CODE: " << code << "\n";
-  }
+  ~connector_manager() { off(); }
 };
+} // namespace connector

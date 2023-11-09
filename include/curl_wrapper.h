@@ -2,7 +2,7 @@
 #include"curl/curl.h"
 #include<iostream>
 #include <nlohmann/json.hpp>
-#define IP_MANAGER "127.0.0.1:3000"
+
 using t_json = nlohmann::json;
 struct memory {
   char *response;
@@ -34,9 +34,9 @@ public:
        
     }
     
-    std::string get_page(const std::string& url) {
+    std::string get_page(std::string ip,const std::string& url) {
         CURL* curl_handle=get_curl();
-        std::string path=IP_MANAGER+url;
+        std::string path=ip+url;
         std::string downloadedData;
        
 
@@ -56,9 +56,9 @@ public:
         return downloadedData;
     }
     
-    std::string get_page(const std::string& url,std::string json) {
+    std::string get_page(std::string ip,const std::string& url,std::string json) {
         CURL* curl_handle=get_curl();
-        std::string path=IP_MANAGER+url;
+        std::string path=ip+url;
         std::string downloadedData;
         
         if (curl_handle) {
@@ -84,8 +84,8 @@ public:
        
         return downloadedData;
     }
-    t_json get_page_json(const std::string& url) {
-        std::string downloadedData=get_page(url);
+    t_json get_page_json(std::string ip,const std::string& url) {
+        std::string downloadedData=get_page(ip,url);
         t_json jsondata;
         try
         {
@@ -97,8 +97,8 @@ public:
         }
         return jsondata;
     }
-    t_json get_page_json(const std::string& url,std::string json) {
-        std::string downloadedData=get_page(url,json);
+    t_json get_page_json(std::string ip,const std::string& url,std::string json) {
+        std::string downloadedData=get_page(ip,url,json);
         t_json jsondata;
         try
         {

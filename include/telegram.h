@@ -95,6 +95,8 @@ void getcode(t_json json_send,t_json json_answer);
 class TG : public TelegramClient {
 public:
   TG() : TelegramClient() {
+    conn_m.add_connection("127.0.0.1:3000");
+    conn_m.on();
     //my_id=conn_m.get_my_id();
     t_json json;
     json["meta"]["$type_event"]="req";
@@ -106,7 +108,7 @@ public:
     std::cout<<"SERVERS: " <<json["meta"]["$list_servers"].dump()<<"\n";
     //conn_m.send(json,getcode);
     for(int i=0;i<30;i++){
-    conn_m.send(json,getcode);
+    conn_m.send("127.0.0.1:3000",json,getcode);
     }
     
     std::cout<<"MY ID: "<<my_id<<"\n";
@@ -126,7 +128,7 @@ public:
 
 private:
   std::vector<channel> channels;
-  connector_manager conn_m;
+  connector::connector_manager conn_m;
   int my_id=0;
 private:
   int last_chat = 0;
