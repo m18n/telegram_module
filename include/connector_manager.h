@@ -10,6 +10,8 @@
 #include <thread>
 #include "curl_wrapper.h"
 #include "mutex"
+#include <cstdlib>  // Include the C Standard Library for random number generation
+#include <ctime>  
 #define NAME_SERVER "telegram"
 std::string GetLocalIP();
 struct return_data {
@@ -154,36 +156,46 @@ class connector_manager {
   bool empty_thread = false;
   std::mutex mt;
   curl_wrapper cw;
-
+  std::mutex mt_ret;
   bool work_loop = false;
 
  private:
   void add_returns(return_data d) {
+    mt_ret.lock();
     for (int i = 0; i < returns.size(); i++) {
       if (returns[i].respon_id == -1) {
         returns[i] = d;
+        mt_ret.unlock();
         return;
       }
     }
+   
     returns.push_back(d);
+     mt_ret.unlock();
   }
-  void delete_return(return_data d) {
-    for (int i = 0; i < returns.size(); i++) {
-      if (returns[i].respon_id == d.respon_id) {
-        returns[i].respon_id = -1;
-        return;
-      }
-    }
-  }
-  int search_returns(int respon_id, std::string server_hash) {
+  void call_return(int respon_id,std::string server_hash,t_json answer){
+    mt_ret.lock();
     for (int i = 0; i < returns.size(); i++) {
       if (returns[i].respon_id == respon_id &&
           returns[i].server_hash == server_hash) {
-        return i;
+        returns[i].callback(returns[i].json_send,answer);
+        init_return_data(&returns[i]);
       }
     }
-    return -1;
+    mt_ret.unlock();
   }
+  void delete_return(return_data d) {
+    mt_ret.lock();
+    for (int i = 0; i < returns.size(); i++) {
+      if (returns[i].respon_id == d.respon_id) {
+        returns[i].respon_id = -1;
+        mt_ret.unlock();
+        return;
+      }
+    }
+    mt_ret.unlock();
+  }
+  
   void get_my_id() {
     std::string hash_worker = "";
     std::string server_hash;
@@ -378,19 +390,17 @@ class connector_manager {
       }
       start_time = std::chrono::high_resolution_clock::now();
       if (json["meta"]["$type_event"] == "res") {
-        int index = search_returns(json["meta"]["$respon_id"],
-                                   json["meta"]["$server_hash"]);
-        if (index != -1) {
           if (start_event(json["id"]) != -2) {
-            returns[index].callback(returns[index].json_send, json);
+            call_return(json["meta"]["$respon_id"],
+                                   json["meta"]["$server_hash"], json);
             end_event(json["id"]);
           }
-          init_return_data(&returns[index]);
-        }
       } else if (json["meta"]["$type_event"] == "req") {
         for (int j = 0; j < handlers.size(); j++) {
           if (handlers[j].nameobj == json["meta"]["$type_obj"]) {
+            std::cout<<"START JSON: "<<json["meta"]["$respon_id"]<<"\n";
             if (start_event(json["id"]) != -2) {
+              std::cout<<"CALLBACK: "<<json["meta"]["$respon_id"]<<"\n";
               handlers[j].callback(this, json);
               end_event(json["id"]);
             }
@@ -405,7 +415,7 @@ class connector_manager {
   }
   void getevent() {
     std::string res_str = "";
-    t_json jsonres;
+     t_json json_temp;
     std::string ns = NAME_SERVER;
     int col = 0;
     while (res_str == "") {
@@ -418,11 +428,18 @@ class connector_manager {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
       }
     }
+    if(res_str[0]=='{'){
+      json_temp=t_json::parse(res_str);
+      if(json_temp.contains("$error")){
+        get_my_id();
+        return;
+      }
+    }
     size_t pos = 0;  // Знаходимо перше входження
     t_json id;
     t_json meta;
     t_json data;
-    t_json json_temp;
+  
     int n = 0;
     std::string str_size_json;
     str_size_json.resize(10);
@@ -494,6 +511,7 @@ class connector_manager {
   void loop() {
     while (work_loop == true) {
       getevent();
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
   }
   void finish_loop() {

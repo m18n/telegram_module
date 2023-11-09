@@ -9,6 +9,19 @@ std::string TelegramClient::get_user_name(std::int64_t user_id) const {
 }
 void getcode(t_json json_send,t_json json_answer){
   static int i=0;
+  static auto start_time=std::chrono::high_resolution_clock::now();
+  static auto end_time = std::chrono::high_resolution_clock::now();
+  static auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        end_time - start_time);
+  if(i==0){
+    start_time = std::chrono::high_resolution_clock::now();
+    
+  }else if(i==29){
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        end_time - start_time);
+    std::cout<<"TIME: "<<duration.count()<<"\n";
+  }
   std::cout<<"\n INDEX:"<<i<<" CODE: "<<json_answer["data"].dump()<<"\n\n";
   i++;
 }
