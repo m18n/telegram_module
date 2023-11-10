@@ -1,4 +1,5 @@
 #pragma once
+#define NAME_CLIENT "telegram"
 //
 // Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov
 // (arseny30@gmail.com) 2014-2023
@@ -24,7 +25,7 @@
 // and sending text messages.
 
 // overloaded
-#define NAME_CLIENT "telegram"
+
 namespace detail {
 template <class... Fs> struct overload;
 
@@ -97,7 +98,7 @@ class TG : public TelegramClient {
 public:
   TG() : TelegramClient() {
     conn_m.add_connection("127.0.0.1:3000");
-    conn_m.add_connection("127.0.0.1:3001");
+    //conn_m.add_connection("127.0.0.1:3001");
     conn_m.on();
     //my_id=conn_m.get_my_id();
     t_json json;
@@ -111,7 +112,7 @@ public:
     //conn_m.send(json,getcode);
     for(int i=0;i<1;i++){
     conn_m.send("127.0.0.1:3000",json,getcode);
-    conn_m.send("127.0.0.1:3001",json,getcode);
+    //conn_m.send("127.0.0.1:3001",json,getcode);
     }
     
     std::cout<<"MY ID: "<<my_id<<"\n";
