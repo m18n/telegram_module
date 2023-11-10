@@ -24,6 +24,7 @@
 // and sending text messages.
 
 // overloaded
+#define NAME_CLIENT "telegram"
 namespace detail {
 template <class... Fs> struct overload;
 
