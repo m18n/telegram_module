@@ -1,5 +1,5 @@
 #pragma once
-#define NAME_CLIENT "telegram"
+
 //
 // Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov
 // (arseny30@gmail.com) 2014-2023
@@ -97,6 +97,7 @@ void getcode(t_json json_send,t_json json_answer);
 class TG : public TelegramClient {
 public:
   TG() : TelegramClient() {
+    conn_m.name_client="telegram";
     conn_m.add_connection("127.0.0.1:3000");
     //conn_m.add_connection("127.0.0.1:3001");
     conn_m.on();
@@ -106,10 +107,11 @@ public:
     json["meta"]["$type_obj"]="code";
     json["meta"]["$list_servers"][0]={{"name","telegram"}};
     json["meta"]["$list_servers"][1]={{"name","tasker"}};
-    json["meta"]["$list_servers"][2]={{"name","web"}};
+    json["meta"]["$list_servers"][2]={{"name","global_tasker_node"}};
+    json["meta"]["$list_servers"][3]={{"name","web"}};
     json["data"]={{"test","\n%$sd\"}f&"}};
     std::cout<<"SERVERS: " <<json["meta"]["$list_servers"].dump()<<"\n";
-    //conn_m.send(json,getcode);
+    //conn_m.send(json,getcode);  
     for(int i=0;i<1;i++){
     conn_m.send("127.0.0.1:3000",json,getcode);
     //conn_m.send("127.0.0.1:3001",json,getcode);
