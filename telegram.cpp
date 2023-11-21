@@ -7,7 +7,7 @@ std::string TelegramClient::get_user_name(std::int64_t user_id) const {
   }
   return it->second->first_name_ + " " + it->second->last_name_;
 }
-void getcode(t_json json_send,t_json json_answer){
+void getcode(connector::t_json json_send,connector::t_json json_answer){
   static int i=0;
   static auto start_time=std::chrono::high_resolution_clock::now();
   static auto end_time = std::chrono::high_resolution_clock::now();

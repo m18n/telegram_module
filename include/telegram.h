@@ -93,22 +93,24 @@ struct channel {
   int64_t id;
   std::string name;
 };
-void getcode(t_json json_send,t_json json_answer);
+void getcode(connector::t_json json_send,connector::t_json json_answer);
 class TG : public TelegramClient {
 public:
   TG() : TelegramClient() {
     conn_m.name_client="telegram";
+    //connector::connector_log->add_log_level(0);
+    connector::connector_log->add_log_level(1);
     conn_m.add_connection("127.0.0.1:3000");
     //conn_m.add_connection("127.0.0.1:3001");
     conn_m.on();
     //my_id=conn_m.get_my_id();
-    t_json json;
+    connector::t_json json;
     json["meta"]["$type_event"]="req";
     json["meta"]["$type_obj"]="code";
     json["meta"]["$list_servers"][0]={{"name","telegram"}};
     json["meta"]["$list_servers"][1]={{"name","tasker"}};
-    json["meta"]["$list_servers"][2]={{"name","global_tasker_node"}};
-    json["meta"]["$list_servers"][3]={{"name","web"}};
+    //json["meta"]["$list_servers"][2]={{"name","global_tasker_node"}};
+    json["meta"]["$list_servers"][2]={{"name","web"}};
     json["data"]={{"test","\n%$sd\"}f&"}};
     std::cout<<"SERVERS: " <<json["meta"]["$list_servers"].dump()<<"\n";
     //conn_m.send(json,getcode);  
