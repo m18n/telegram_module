@@ -114,7 +114,7 @@ public:
     json["data"]={{"test","\n%$sd\"}f&"}};
     std::cout<<"SERVERS: " <<json["meta"]["$list_servers"].dump()<<"\n";
     //conn_m.send(json,getcode);  
-    for(int i=0;i<10;i++){
+    for(int i=0;i<1000;i++){
     conn_m.send("127.0.0.1:3000",json,getcode);
     //conn_m.send("127.0.0.1:3001",json,getcode);
     }
